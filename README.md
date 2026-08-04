@@ -152,3 +152,28 @@ python query_clickhouse.py
 | **ClickHouse DW** | `http://localhost:8123` (HTTP API) | `default` | `traffic_password` |
 | **Spark Cluster** | `http://localhost:8080` (Master Web) | *Không yêu cầu* | *Không yêu cầu* |
 | **Airflow Orchestrator**| `http://localhost:8085` (Web UI) | `admin` | `admin` |
+
+---
+
+## ⚠️ Hạn chế kỹ thuật & Hướng nâng cấp (Data Engineering Limitations & Roadmap)
+
+Mặc dù dự án đã triển khai hoàn chỉnh kiến trúc End-to-End từ Ingestion -> Storage -> Processing -> DW -> Dashboard, dưới góc độ **Data Engineering chuẩn Production**, hệ thống hiện tại có một số hạn chế kỹ thuật và cần được nâng cấp theo lộ trình:
+
+### 1. 🔄 Tiếp nhận & Luồng dữ liệu (Data Ingestion & Streaming)
+* **Chưa có True Streaming**: PySpark Job hiện tại gom message từ RabbitMQ bằng kịch bản micro-batch pulling (`basic_get`), dẫn tới cổ chai ở Spark Driver khi volume ảnh lớn. Cần nâng cấp lên **Spark Structured Streaming** liên tục.
+* **Thiếu Dead Letter Queue (DLQ)**: Khi dữ liệu bị hỏng/lỗi schema, hệ thống nack/log lỗi chứ chưa đẩy vào DLQ để theo dõi và xử lý lại (re-process).
+* **Hạn chế của RabbitMQ**: Đối với hệ thống giám sát hàng nghìn camera thời gian thực, cần cân nhắc chuyển đổi hoặc tích hợp **Apache Kafka / Redpanda** để hỗ trợ log streaming throughput cao và khả năng replay dữ liệu.
+
+### 2. 🏛️ Mô hình hóa & Tối ưu Data Warehouse (ClickHouse DW)
+* **Thiếu Partitioning & TTL**: Bảng `fact_traffic_flow` chưa được phân vùng `PARTITION BY toYYYYMM(timestamp)` và chưa cài đặt chính sách nén/xóa tự động dữ liệu cũ (`TTL`).
+* **Tính nhất quán & Chống lặp dữ liệu (Idempotency)**: Nếu Spark Job bị lỗi rớt giữa chừng sau khi insert ClickHouse nhưng trước khi ACK RabbitMQ, message sẽ được gửi lại gây ghi trùng lặp dữ liệu (Duplicate Data). Cần áp dụng ClickHouse Deduplication Key hoặc `ReplacingMergeTree`.
+* **Thiếu Materialized Views**: Streamlit Dashboard hiện đang tính toán trực tiếp từ bảng raw fact. Cần xây dựng các ClickHouse Materialized Views (pre-aggregations theo giờ/ngày/camera) để tối ưu tốc độ truy vấn dashboard.
+
+### 3. 🛡️ Chất lượng Dữ liệu & Giám sát (Data Quality & Monitoring)
+* **Chưa có Data Quality Validation**: Thiếu các bộ kiểm tra tự động trước khi nạp dữ liệu vào DW (kiểm tra `count >= 0`, `timestamp` hợp lệ, tọa độ camera chính xác).
+* **Cảnh báo bất thường (Data Anomaly & Alerting)**: Chưa có cơ chế phát hiện camera lỗi (trả về 0 xe liên tục), camera mất kết nối hoặc cảnh báo kẹt xe mức độ cao (High Congestion Alert) qua Webhook/Slack/Telegram.
+* **Data Lineage & Airflow Pipeline**: Airflow DAG hiện tại chạy lệnh local bash đơn giản, chưa tận dụng `SparkSubmitOperator`, Sensors kiểm tra hàng đợi và theo vết nguồn gốc dữ liệu (Data Lineage với OpenLineage/DataHub).
+
+### 4. 🔒 Bảo mật & Quyền riêng tư (Data Privacy & PII)
+* **Làm mờ thông tin cá nhân (PII Masking)**: Ảnh camera thực tế chứa biển số xe và khuôn mặt. Cần tích hợp module AI tự động làm mờ (blurring) các thông tin nhạy cảm trước khi lưu trữ lâu dài trên Data Lake (MinIO S3) để tuân thủ các quy định bảo vệ dữ liệu cá nhân.
+

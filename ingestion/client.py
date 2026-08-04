@@ -26,6 +26,7 @@ try:
     import image_ingestion_pb2_grpc
 except ImportError:
     # Try compiling protobuf definitions first
+    # pyrefly: ignore [missing-import]
     from grpc_tools import protoc
     logger.info("Compiling Protobuf definitions in client...")
     if not os.path.exists(GEN_DIR):
@@ -45,6 +46,7 @@ except ImportError:
 
 # Pillow is optional, fallback to random bytes if not installed
 try:
+    # pyrefly: ignore [missing-import]
     from PIL import Image, ImageDraw, ImageFont
     HAS_PILLOW = True
 except ImportError:

@@ -28,6 +28,7 @@ CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "traffic_password")
 
 # Try to import PySpark
 try:
+    # pyrefly: ignore [missing-import]
     from pyspark.sql import SparkSession
 except ImportError:
     logger.error("PySpark is not installed. Please install pyspark to run this script.")
@@ -101,6 +102,7 @@ def process_partition(iterator):
     
     # Initialize MinIO client inside worker partition
     try:
+        # pyrefly: ignore [missing-import]
         from minio import Minio
         minio_client = Minio(
             MINIO_ENDPOINT,
@@ -117,7 +119,9 @@ def process_partition(iterator):
     Image = None
 
     try:
+        # pyrefly: ignore [missing-import]
         from PIL import Image
+        # pyrefly: ignore [missing-import]
         from ultralytics import YOLO
         # Load pre-trained YOLOv8 nano model
         model = YOLO('yolov8n.pt')
@@ -258,6 +262,7 @@ def save_to_clickhouse(events, traffic_results):
     Saves processed results and image metadata to ClickHouse traffic_dw.
     """
     try:
+        # pyrefly: ignore [missing-import]
         import clickhouse_connect
         client = clickhouse_connect.get_client(
             host=CLICKHOUSE_HOST,

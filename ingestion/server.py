@@ -21,6 +21,7 @@ if not os.path.exists(GEN_DIR):
     os.makedirs(GEN_DIR)
 
 try:
+    # pyrefly: ignore [missing-import]
     from grpc_tools import protoc
     logger.info("Compiling Protobuf definitions...")
     protoc.main((
@@ -39,13 +40,17 @@ sys.path.insert(0, GEN_DIR)
 
 try:
     import grpc
+    # pyrefly: ignore [missing-import]
     import image_ingestion_pb2
+    # pyrefly: ignore [missing-import]
     import image_ingestion_pb2_grpc
 except ImportError as e:
     logger.error("Failed to import required libraries. Make sure grpcio, grpcio-tools are installed.")
     sys.exit(1)
 
+# pyrefly: ignore [missing-import]
 from minio import Minio
+# pyrefly: ignore [missing-import]
 from minio.error import S3Error
 import pika
 
